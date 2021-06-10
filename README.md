@@ -9,11 +9,20 @@
 - gazebo 9
 
 # Node
-## Service (EST_server)
+## Service 1 (path_EST_server)
 ### input arguments
 - map (nav_msgs/OccupancyGrid)
 - node_values (sensor_msgs/PointCloud)
-- start (geometry_msgs/Point32)
+- start (in pixel) (geometry_msgs/Point32)
+
+### return
+- path (nav_msgs/Path)
+
+## Service 2 (path_GEST_server)
+### input arguments
+- map (nav_msgs/OccupancyGrid)
+- G_json_str (std_msgs/String)
+- start (in cartesian) (geometry_msgs/Point32)
 
 ### return
 - path (nav_msgs/Path)

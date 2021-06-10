@@ -17,6 +17,7 @@ class cb_srv():
         h = msg.map.info.height
         w = msg.map.info.width
         map = np.reshape(msg.map.data, (h,w))
+        map_origin = (msg.map.info.origin.position.x, msg.map.info.origin.position.y)
 
         # node datas
         node_values = msg.node_values
@@ -30,7 +31,7 @@ class cb_srv():
             node_value_dict[iter] = v
 
         # start index in array
-        start = (int(msg.start.x), int(msg.start.y))
+        start = convert_cart2array((msg.start.x, msg.start.y), res, map_origin)
 
         # processing transfrom
         frontier_trans_array = get_frontier_trans_array(map, self.p['min_dist_frontier_obs'], res)

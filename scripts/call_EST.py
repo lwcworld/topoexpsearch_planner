@@ -4,7 +4,7 @@ from Variables import *
 from Subscribers import *
 import matplotlib.pyplot as plt
 import networkx as nx
-from topoexpsearch_planner.srv import get_ET
+from topoexpsearch_planner.srv import get_path_EST
 from geometry_msgs.msg import Point32
 
 if __name__ == '__main__':
@@ -23,8 +23,8 @@ if __name__ == '__main__':
     sub = Subscribers(q_t=q_t, q_m=q_m, q_r=q_r, q_h=q_h, q_f=q_f, p=p)
 
     # service
-    rospy.wait_for_service('get_ET')
-    srv_get_ET = rospy.ServiceProxy('get_ET', get_ET)
+    rospy.wait_for_service('get_path_EST')
+    srv_get_path_EST = rospy.ServiceProxy('get_path_EST', get_path_EST)
 
     rate = rospy.Rate(5)
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
             start.x = 400
             start.y = 400
 
-            output = srv_get_ET(map, node_values, start)
+            output = srv_get_path_EST(map, node_values, start)
             path = output.path
             i_path = [point.pose.position.x for point in path.poses]
             j_path = [point.pose.position.y for point in path.poses]

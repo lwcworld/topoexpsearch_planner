@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- ::: node 1: sense and control -->
+	<node pkg="topoexpsearch_planner" name="EST_server" type="srv_EST.py" output="screen">
+	</node>
+</launch>
+

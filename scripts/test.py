@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 from Params import *
-from Utils_EST import *
 from Utils_GEST import  *
-from pytictoc import TicToc
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import json
 
 # ===== toy inputs =====
 # map related

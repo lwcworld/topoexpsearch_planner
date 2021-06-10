@@ -10,8 +10,8 @@ import json
 
 # ===== caller =====
 # map related
-q_m = np.load('../data/q_m.npy', allow_pickle='TRUE').item()
-q_r = np.load('../data/q_r.npy', allow_pickle='TRUE').item()
+q_m = np.load('/home/lwcubuntu/data/q_m_q_r/q_m.npy', allow_pickle='TRUE').item()
+q_r = np.load('/home/lwcubuntu/data/q_m_q_r/q_r.npy', allow_pickle='TRUE').item()
 
 # remove self recurisve edges
 edges = list(q_m['global_network'].edges())
@@ -40,7 +40,7 @@ to_go = nx.get_node_attributes(q_m['global_network'], 'to_go')
 
 G_json = {"edges":edges, "value":value, "isrobot":isrobot, "pos":pos, "to_go":to_go}
 G_json_str = str(G_json)
-
+print(G_json_str)
 map_origin = q_m['origin']
 res = q_m['res']
 

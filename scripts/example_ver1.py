@@ -13,6 +13,7 @@ q_r = np.load('../data/q_r.npy', allow_pickle='TRUE').item()
 
 # nodes pos
 node_pos_dict = get_nx_node_pos_array(q_m['global_network'], q_m['res'], q_m['origin'])
+
 # nodes value
 for i_n in range(len(q_m['global_network'].nodes)):
     q_m['global_network'].nodes[i_n]['value'] = 0.3

@@ -3,6 +3,7 @@ import math
 import matplotlib.pyplot as plt
 import copy
 import numpy as np
+import json
 
 def reconstruct_graph(G_json_str):
     G_json = eval(G_json_str)
@@ -44,18 +45,25 @@ def get_EST_graph(G, alpha, beta):
     return G
 
 def get_path_gradientdescent_graph(G):
-    n = [n for n, attr in G.nodes(data=True) if attr['isrobot'] == True][0]  # robot nodes
+    n = [n for n, attr in G.nodes(data=True) if attr['isrobot'] == True][0] # robot nodes
     poses = nx.get_node_attributes(G,'pos')
     path_node = [n]
     path_pos = [poses[n]]
-    while G.nodes[n]['to_go']==False:
+
+    n_prev = -1
+    while n_prev != n:
+        print(n_prev, n)
         EST_n = G.nodes[n]['EST']
         adj = list(G.neighbors(n))
+
+        n_prev = copy.deepcopy(n)
         for k in adj:
             if G.nodes[k]['EST'] < EST_n:
                 n = k
-        path_node.append(n)
-        path_pos.append(G.nodes[n]['pos'])
+        if n_prev != n:
+            path_node.append(n)
+            path_pos.append(G.nodes[n]['pos'])
+
     return path_node, path_pos
 
 def convert_cart2array(pos_cart, res, map_origin):
@@ -147,31 +155,49 @@ def get_path_gradientdescent_array_from_localmap(costmap, idx_start, res, start_
             path_array_local.append(min_adj)
             idx = min_adj
 
+    # plt.imshow(costmap)
+    # for point in path_array_local:
+    #     plt.scatter(point[0],point[1])
+    # plt.gca().invert_yaxis()
+    # plt.show()
+
     path_cart = convert_path_array2cart(path_array_local, res, origin_array=idx_start, start_cart=start_cart)
 
     return path_cart
 
+def marginalize_adj_list(adj, shape):
+    return [(i, j) for (i, j) in adj if i >= 0 and j >= 0 and i < shape[0] and j < shape[1]]
 
 def get_frontier_trans_array(map, min_dist_frontier_obs, res):
     idx_free = np.where(map == 0)
     frontier_trans = np.zeros(np.shape(map))
     d_cell = int(min_dist_frontier_obs/res)
+    np.save('test_map2', map)
     for i, j in zip(idx_free[0], idx_free[1]):
-        check_unknown = [map[i-1,j]==-1, map[i+1,j]==-1 , map[i,j-1]==-1 , map[i,j+1]==-1 , map[i-1,j+1]==-1 , map[i-1,j-1]==-1 , map[i+1,j+1]==-1, map[i+1,j-1]==-1]
-        check_occ = (map[i-d_cell:i+d_cell+1,j-d_cell:j+d_cell+1] == 100)
-        if check_unknown.count(True)>2 and np.all(check_occ==False):
-            frontier_trans[i,j] = 1
+        adj_s = get_straight_idxs((i,j))
+        adj_d = get_diagonal_idxs((i,j))
+        adj_s = marginalize_adj_list(adj_s, np.shape(map))
+        adj_d = marginalize_adj_list(adj_d, np.shape(map))
+        adj_list = adj_s + adj_d
+
+        check_unknown = [True for adj in adj_list if map[adj[0], adj[1]]==-1]
+        if check_unknown.count(True)>2:
+            i_range = (max(0, i-d_cell), min(np.shape(map)[0], i+d_cell+1))
+            j_range = (max(0, j-d_cell), min(np.shape(map)[1], j+d_cell+1))
+            check_occ = (map[i_range[0]:i_range[1], j_range[0]:j_range[1]] == 100)
+            if np.all(check_occ==False):
+                frontier_trans[i,j] = 1
 
     idx_frontier = np.where(frontier_trans==1)
     for i, j in zip(idx_frontier[0], idx_frontier[1]):
-        check_frontier = [frontier_trans[i - 1, j] == 1,
-                          frontier_trans[i + 1, j] == 1,
-                          frontier_trans[i, j - 1] == 1,
-                          frontier_trans[i, j + 1] == 1,
-                          frontier_trans[i - 1, j + 1] == 1,
-                          frontier_trans[i - 1, j - 1] == 1,
-                          frontier_trans[i + 1, j + 1] == 1,
-                          frontier_trans[i + 1, j - 1] == 1]
+        adj_s = get_straight_idxs((i,j))
+        adj_d = get_diagonal_idxs((i,j))
+        adj_s = marginalize_adj_list(adj_s, np.shape(map))
+        adj_d = marginalize_adj_list(adj_d, np.shape(map))
+        adj_list = adj_s + adj_d
+
+        check_frontier = [True for adj in adj_list if frontier_trans[adj[0], adj[1]]==1]
+
         if check_frontier.count(True) < 1:
             frontier_trans[i,j] = 0
     return frontier_trans
@@ -188,19 +214,39 @@ def get_obstacle_trans_array(map):
         j = queue_j.pop(0)
         adj_s = get_straight_idxs((i,j))
         adj_d = get_diagonal_idxs((i,j))
-        for k in range(4):
-            if map[adj_s[k][0], adj_s[k][1]]==0 and (obs_trans[i,j] + 1.0 < obs_trans[adj_s[k][0], adj_s[k][1]]):
-                obs_trans[adj_s[k][0], adj_s[k][1]] = obs_trans[i,j] + 1.0
-                queue_i.append(adj_s[k][0])
-                queue_j.append(adj_s[k][1])
-            if map[adj_d[k][0], adj_d[k][1]]==0 and (obs_trans[i,j] + 1.414 < obs_trans[adj_d[k][0], adj_d[k][1]]):
-                obs_trans[adj_d[k][0], adj_d[k][1]] = obs_trans[i,j] + 1.414
-                queue_i.append(adj_d[k][0])
-                queue_j.append(adj_d[k][1])
+        adj_s = marginalize_adj_list(adj_s, np.shape(map))
+        adj_d = marginalize_adj_list(adj_d, np.shape(map))
+
+        # for k in range(4):
+        #     if map[adj_s[k][0], adj_s[k][1]]==0 and (obs_trans[i,j] + 1.0 < obs_trans[adj_s[k][0], adj_s[k][1]]):
+        #         obs_trans[adj_s[k][0], adj_s[k][1]] = obs_trans[i,j] + 1.0
+        #         queue_i.append(adj_s[k][0])
+        #         queue_j.append(adj_s[k][1])
+        #     if map[adj_d[k][0], adj_d[k][1]]==0 and (obs_trans[i,j] + 1.414 < obs_trans[adj_d[k][0], adj_d[k][1]]):
+        #         obs_trans[adj_d[k][0], adj_d[k][1]] = obs_trans[i,j] + 1.414
+        #         queue_i.append(adj_d[k][0])
+        #         queue_j.append(adj_d[k][1])
+
+        for adj in adj_s:
+            if map[adj[0], adj[1]]==0 and (obs_trans[i,j] + 1.0 < obs_trans[adj[0], adj[1]]):
+                obs_trans[adj[0], adj[1]] = obs_trans[i,j] + 1.0
+                queue_i.append(adj[0])
+                queue_j.append(adj[1])
+        for adj in adj_d:
+            if map[adj[0], adj[1]]==0 and (obs_trans[i,j] + 1.414 < obs_trans[adj[0], adj[1]]):
+                obs_trans[adj[0], adj[1]] = obs_trans[i,j] + 1.414
+                queue_i.append(adj[0])
+                queue_j.append(adj[1])
     idx_dummy = np.where(obs_trans==100000.0)
     obs_trans[idx_dummy[0], idx_dummy[1]] = 0
     return obs_trans
 
+def c_danger(obs_trans_array, c, d_opt, res):
+    d_opt_cell = d_opt/res # from meter to cell
+    if obs_trans_array[c[0], c[1]] <= d_opt_cell:
+        return (d_opt_cell - obs_trans_array[c[0],c[1]])**1.5
+    else:
+        return (obs_trans_array[c[0],c[1]] - d_opt_cell)**1.5
 
 def get_EST_array(map, frontier_value_trans_array, obs_trans_array, alpha, beta, d_opt, res):
     idx_frontier = np.where(frontier_value_trans_array!=-1)
@@ -213,15 +259,29 @@ def get_EST_array(map, frontier_value_trans_array, obs_trans_array, alpha, beta,
         j = queue_j.pop(0)
         adj_s = get_straight_idxs((i,j))
         adj_d = get_diagonal_idxs((i,j))
-        for k in range(4):
-            if map[adj_s[k][0], adj_s[k][1]]==0 and (exp_trans[i,j] + 1 + alpha*(c_danger(obs_trans_array,(adj_s[k][0],adj_s[k][1]),d_opt,res)) < exp_trans[adj_s[k][0], adj_s[k][1]]):
-                exp_trans[adj_s[k][0], adj_s[k][1]] = exp_trans[i,j] + 1 + alpha*(c_danger(obs_trans_array,(adj_s[k][0],adj_s[k][1]),d_opt,res))
-                queue_i.append(adj_s[k][0])
-                queue_j.append(adj_s[k][1])
-            if map[adj_d[k][0], adj_d[k][1]]==0 and (exp_trans[i,j] + 1.414 + alpha*(c_danger(obs_trans_array,(adj_d[k][0],adj_d[k][1]),d_opt,res)) < exp_trans[adj_d[k][0], adj_d[k][1]]):
-                exp_trans[adj_d[k][0], adj_d[k][1]] = exp_trans[i,j] + 1.414 + alpha*(c_danger(obs_trans_array,(adj_d[k][0],adj_d[k][1]),d_opt,res))
-                queue_i.append(adj_d[k][0])
-                queue_j.append(adj_d[k][1])
+        adj_s = marginalize_adj_list(adj_s, np.shape(map))
+        adj_d = marginalize_adj_list(adj_d, np.shape(map))
+
+        # for k in range(4):
+        #     if map[adj_s[k][0], adj_s[k][1]]==0 and (exp_trans[i,j] + 1 + alpha*(c_danger(obs_trans_array,(adj_s[k][0],adj_s[k][1]),d_opt,res)) < exp_trans[adj_s[k][0], adj_s[k][1]]):
+        #         exp_trans[adj_s[k][0], adj_s[k][1]] = exp_trans[i,j] + 1 + alpha*(c_danger(obs_trans_array,(adj_s[k][0],adj_s[k][1]),d_opt,res))
+        #         queue_i.append(adj_s[k][0])
+        #         queue_j.append(adj_s[k][1])
+        #     if map[adj_d[k][0], adj_d[k][1]]==0 and (exp_trans[i,j] + 1.414 + alpha*(c_danger(obs_trans_array,(adj_d[k][0],adj_d[k][1]),d_opt,res)) < exp_trans[adj_d[k][0], adj_d[k][1]]):
+        #         exp_trans[adj_d[k][0], adj_d[k][1]] = exp_trans[i,j] + 1.414 + alpha*(c_danger(obs_trans_array,(adj_d[k][0],adj_d[k][1]),d_opt,res))
+        #         queue_i.append(adj_d[k][0])
+        #         queue_j.append(adj_d[k][1])
+
+        for adj in adj_s:
+            if map[adj[0], adj[1]]==0 and (exp_trans[i,j] + 1 + alpha*(c_danger(obs_trans_array,(adj[0],adj[1]),d_opt,res)) < exp_trans[adj[0], adj[1]]):
+                exp_trans[adj[0], adj[1]] = exp_trans[i,j] + 1 + alpha*(c_danger(obs_trans_array,(adj[0],adj[1]),d_opt,res))
+                queue_i.append(adj[0])
+                queue_j.append(adj[1])
+        for adj in adj_d:
+            if map[adj[0], adj[1]]==0 and (exp_trans[i,j] + 1.414 + alpha*(c_danger(obs_trans_array,(adj[0],adj[1]),d_opt,res)) < exp_trans[adj[0], adj[1]]):
+                exp_trans[adj[0], adj[1]] = exp_trans[i,j] + 1.414 + alpha*(c_danger(obs_trans_array,(adj[0],adj[1]),d_opt,res))
+                queue_i.append(adj[0])
+                queue_j.append(adj[1])
     idx_dummy = np.where(exp_trans==1000000.0)
     exp_trans[idx_dummy[0], idx_dummy[1]] = 0
     return exp_trans

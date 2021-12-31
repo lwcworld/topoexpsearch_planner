@@ -61,7 +61,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(DIRECTORY srv 
         FILES 
         get_path_EST.srv
-        get_path_GEST.srv)
+        get_path_GEST.srv
+        get_path_hector.srv)
 
 ## Generate actions in the 'action' folder
 # add_action_files(

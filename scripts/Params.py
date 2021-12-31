@@ -31,6 +31,9 @@ class param:
         # topo algorithm (ENN, voronoi)
         self.topo_alg = 'voronoi'
 
+        #
+        self.local_map_width_height = 300
+
         # category colomap
         # self.cmap_category = {'lab': [(0, 0, 255)],
         #                      'corridor': [(0, 150, 255), (255, 255, 0), (255,255,255)],
@@ -57,6 +60,9 @@ class param:
 
         # EST related
         self.min_dist_frontier_obs = 0.2
+        self.alpha_G = 0.05  # obstacle weight
+        self.beta_G = 1.0 # weight for object search probability (OSP)
+
         self.alpha = 1.0  # obstacle weight
         self.beta = 3000.0 # weight for object search probability (OSP)
         self.d_opt = 1.0

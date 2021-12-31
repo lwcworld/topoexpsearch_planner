@@ -59,7 +59,7 @@ def get_path_gradientdescent_array(costmap, idx_start):
             if costmap[adj[0], adj[1]] < min_cost:
                 min_cost = costmap[adj[0], adj[1]]
                 min_adj = adj
-        if min_cost == costmap[idx[0], idx[1]] or min_cost==0:
+        if min_cost >= costmap[idx[0], idx[1]] or min_cost==0:
             flag_arrive = True
         else:
             path.append(min_adj)
